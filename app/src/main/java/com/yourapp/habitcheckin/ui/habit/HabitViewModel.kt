@@ -75,6 +75,30 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun editHabitName(habitId: Int, name: String) {
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty()) return
+
+        viewModelScope.launch {
+            habitDao.updateHabitName(habitId, trimmedName)
+            refreshHabitPages()
+        }
+    }
+
+    fun undoToday(habitId: Int) {
+        viewModelScope.launch {
+            habitDao.deleteHabitLogForDate(habitId, today.toString())
+            refreshHabitPages()
+        }
+    }
+
+    fun removeHabit(habitId: Int) {
+        viewModelScope.launch {
+            habitDao.archiveHabit(habitId)
+            refreshHabitPages()
+        }
+    }
+
     private suspend fun refreshHabitPages() {
         val habits = habitDao.getAllHabits()
         habitPages = habits.map { habit ->

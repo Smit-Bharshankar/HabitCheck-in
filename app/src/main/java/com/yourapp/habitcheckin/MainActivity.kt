@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,12 @@ private fun App() {
     var showAddDialog by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState(pageCount = { habitPages.size })
+
+    LaunchedEffect(habitPages.size) {
+        if (habitPages.isNotEmpty() && pagerState.currentPage > habitPages.lastIndex) {
+            pagerState.scrollToPage(habitPages.lastIndex)
+        }
+    }
 
     HabitCheckinTheme(darkTheme = true, dynamicColor = false) {
         Scaffold(
@@ -103,7 +110,10 @@ private fun App() {
                         todayLabel = habitViewModel.todayLabel,
                         isCompletedToday = habitPage.isCompletedToday,
                         weekProgress = habitPage.weekProgress,
-                        onCheckIn = { habitViewModel.onCheckIn(habitPage.habitId) }
+                        onCheckIn = { habitViewModel.onCheckIn(habitPage.habitId) },
+                        onEditName = { name -> habitViewModel.editHabitName(habitPage.habitId, name) },
+                        onUndoToday = { habitViewModel.undoToday(habitPage.habitId) },
+                        onRemoveHabit = { habitViewModel.removeHabit(habitPage.habitId) }
                     )
                 }
             }

@@ -35,4 +35,13 @@ interface HabitDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertHabitLog(log: HabitLogEntity): Long
+
+    @Query("UPDATE habit SET name = :name WHERE id = :habitId")
+    suspend fun updateHabitName(habitId: Int, name: String)
+
+    @Query("UPDATE habit SET isArchived = 1 WHERE id = :habitId")
+    suspend fun archiveHabit(habitId: Int)
+
+    @Query("DELETE FROM habit_log WHERE habitId = :habitId AND date = :date")
+    suspend fun deleteHabitLogForDate(habitId: Int, date: String)
 }
