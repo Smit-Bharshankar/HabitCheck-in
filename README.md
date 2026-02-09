@@ -118,3 +118,6 @@ It is intentionally small, focused, and opinionated.
 ## 📄 License
 
 MIT
+
+
+👉 [Download v1.0.0-beta APK](https://github.com/Smit-Bharshankar/HabitCheck-in/releases/download/v1.0.0-beta/Habit.Checkin.apk)
