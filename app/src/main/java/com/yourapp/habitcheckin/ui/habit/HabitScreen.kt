@@ -1,9 +1,18 @@
 package com.yourapp.habitcheckin.ui.habit
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,35 +45,40 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-private val ScreenBackgroundTop = Color(0xFF0B1020)
-private val ScreenBackgroundMid = Color(0xFF141B2E)
-private val ScreenBackgroundBottom = Color(0xFF1A1233)
-private val HeaderCardColor = Color(0xFF1A2742)
-private val HeaderLabelColor = Color(0xFFB6E3FF)
-private val HeaderDateColor = Color(0xFF8BC8FF)
-private val HabitCardBaseColor = Color(0xFF12162A)
-private val HabitCardGradientStart = Color(0xFF173A5A)
-private val HabitCardGradientMid = Color(0xFF4C1D95)
-private val HabitCardGradientEnd = Color(0xFF0F8B5F)
-private val HabitTitleColor = Color(0xFFEAF7FF)
-private val CompletedPillColor = Color(0xFF0F8B5F)
-private val PendingPillColor = Color(0xFFB26B00)
-private val CheckInButtonColor = Color(0xFF3D5AFE)
+private val ScreenBackgroundTop = Color(0xFF101522)
+private val ScreenBackgroundMid = Color(0xFF151D30)
+private val ScreenBackgroundBottom = Color(0xFF1A1F33)
+private val HeaderCardColor = Color(0xFF1D2A40)
+private val HeaderLabelColor = Color(0xFFC6DBFF)
+private val HeaderDateColor = Color(0xFF9FBFF6)
+private val HabitCardBaseColor = Color(0xFF141A2A)
+private val HabitCardGradientStart = Color(0xFF1E4461)
+private val HabitCardGradientMid = Color(0xFF3F3C7A)
+private val HabitCardGradientEnd = Color(0xFF1F6A63)
+private val HabitTitleColor = Color(0xFFE8EEFF)
+private val CompletedPillColor = Color(0xFF3C8E73)
+private val PendingPillColor = Color(0xFF5F6578)
+private val CheckInButtonColor = Color(0xFF5875E8)
+private val CheckInButtonPressedColor = Color(0xFF4965D1)
 private val DisabledButtonColor = Color(0xFF2A335E)
 private val DisabledButtonTextColor = Color(0xFF9EA7D8)
-private val ProgressDotCompletedColor = Color(0xFF7AA2FF)
-private val ProgressDotEmptyColor = Color(0xFF4A4F62)
+private val ProgressDotCompletedColor = Color(0xFF84A7FF)
+private val ProgressDotEmptyColor = Color(0xFF4B5266)
 private val MenuActionColor = Color(0xFFE8ECF4)
 private val DestructiveColor = Color(0xFFFF5252)
 private val MenuContainerColor = Color(0xFF1E2128)
@@ -85,10 +99,27 @@ fun HabitScreen(
     onRemoveHabit: () -> Unit
 ) {
     val isCompleted = isCompletedToday
-    val statusText = if (isCompleted) "Completed" else "Pending"
+    val statusText = if (isCompleted) "You showed up." else "Ready when you are."
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var editName by remember(habitName) { mutableStateOf(habitName) }
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val animatedButtonScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 120),
+        label = "checkin_button_scale"
+    )
+    val animatedButtonColor = androidx.compose.animation.animateColorAsState(
+        targetValue = when {
+            isCompleted -> DisabledButtonColor
+            isPressed -> CheckInButtonPressedColor
+            else -> CheckInButtonColor
+        },
+        animationSpec = tween(durationMillis = 180),
+        label = "checkin_button_color"
+    )
 
     Box(
         modifier = modifier
@@ -104,7 +135,7 @@ fun HabitScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 14.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = HeaderCardColor
@@ -113,7 +144,7 @@ fun HabitScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 14.dp)
+                        .padding(horizontal = 18.dp, vertical = 16.dp)
                 ) {
                     Text(
                         text = "Today",
@@ -131,7 +162,7 @@ fun HabitScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp),
+                    .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = HabitCardBaseColor
@@ -151,13 +182,13 @@ fun HabitScreen(
                                 onClick = {},
                                 onLongClick = { showMenu = true }
                             )
-                            .padding(horizontal = 22.dp, vertical = 26.dp)
+                            .padding(horizontal = 22.dp, vertical = 30.dp)
                     ) {
                         Text(
                             text = habitName,
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.headlineLarge,
                             color = HabitTitleColor,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -237,7 +268,7 @@ fun HabitScreen(
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = if (isCompleted) CompletedPillColor else PendingPillColor,
-                    modifier = Modifier.height(40.dp)
+                    modifier = Modifier.height(42.dp)
                 ) {
                     Text(
                         text = statusText,
@@ -248,35 +279,59 @@ fun HabitScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
-                Button(
-                    onClick = onCheckIn,
-                    enabled = !isCompleted,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CheckInButtonColor,
-                        contentColor = Color.White,
-                        disabledContainerColor = DisabledButtonColor,
-                        disabledContentColor = DisabledButtonTextColor
-                    ),
-                    modifier = Modifier.height(40.dp)
+                AnimatedVisibility(
+                    visible = !isCompleted,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
                 ) {
-                    Text(
-                        text = if (isCompleted) "Checked In" else "Check In",
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onCheckIn()
+                        },
+                        enabled = !isCompleted,
+                        interactionSource = interactionSource,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = animatedButtonColor.value,
+                            contentColor = Color.White,
+                            disabledContainerColor = DisabledButtonColor,
+                            disabledContentColor = DisabledButtonTextColor
+                        ),
+                        modifier = Modifier
+                            .height(42.dp)
+                            .scale(animatedButtonScale)
+                    ) {
+                        Text(
+                            text = "Check In",
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 weekProgress.forEach { day ->
+                    val dotScale by animateFloatAsState(
+                        targetValue = if (day.isCompleted) 1f else 0.84f,
+                        animationSpec = tween(durationMillis = 260),
+                        label = "dot_scale"
+                    )
+                    val dotAlpha by animateFloatAsState(
+                        targetValue = if (day.isCompleted) 1f else 0.58f,
+                        animationSpec = tween(durationMillis = 260),
+                        label = "dot_alpha"
+                    )
                     Box(
                         modifier = Modifier
                             .size(12.dp)
+                            .scale(dotScale)
+                            .alpha(dotAlpha)
                             .clip(RoundedCornerShape(50))
                             .background(
                                 color = if (day.isCompleted) {

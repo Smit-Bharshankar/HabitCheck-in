@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yourapp.habitcheckin.ui.habit.HabitScreen
 import com.yourapp.habitcheckin.ui.habit.HabitViewModel
 import com.yourapp.habitcheckin.ui.theme.HabitCheckinTheme
+import kotlin.math.absoluteValue
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,8 +106,15 @@ private fun App() {
                         .padding(innerPadding)
                 ) { page ->
                     val habitPage = habitPages[page]
+                    val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
                     HabitScreen(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                translationX = pageOffset * 28f
+                                alpha = 1f - (pageOffset * 0.16f)
+                                scaleY = 1f - (pageOffset * 0.04f)
+                            },
                         habitName = habitPage.habitName,
                         todayLabel = habitViewModel.todayLabel,
                         isCompletedToday = habitPage.isCompletedToday,
