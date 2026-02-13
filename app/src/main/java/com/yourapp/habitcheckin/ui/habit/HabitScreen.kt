@@ -112,7 +112,8 @@ fun HabitScreen(
     onRemoveHabit: () -> Unit,
     onIntentPromptTapped: () -> Unit,
     onIntentChanged: (String) -> Unit,
-    onCollapseIntentInput: () -> Unit
+    onCollapseIntentInput: () -> Unit,
+    onSubmitIntent: () -> Unit
 ) {
     val isCompleted = isCompletedToday
     val statusText = if (isCompleted) "You showed up." else "Ready when you are."
@@ -453,6 +454,7 @@ fun HabitScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             TextButton(
                                 onClick = {
+                                    onSubmitIntent()
                                     onCollapseIntentInput()
                                     isIntentFieldFocused = false
                                 }

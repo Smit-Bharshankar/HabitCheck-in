@@ -66,10 +66,23 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
             if (rowId != -1L) {
-                intentDrafts[habitId] = ""
-                expandedIntentInputs[habitId] = false
                 refreshHabitPages()
             }
+        }
+    }
+
+    fun onSubmitIntent(habitId: Int) {
+        viewModelScope.launch {
+            if (!habitDao.hasLogForDate(habitId, today.toString())) return@launch
+            val intentToSave = intentDrafts[habitId]
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            habitDao.updateHabitLogIntentForDate(
+                habitId = habitId,
+                date = today.toString(),
+                intent = intentToSave
+            )
+            refreshHabitPages()
         }
     }
 

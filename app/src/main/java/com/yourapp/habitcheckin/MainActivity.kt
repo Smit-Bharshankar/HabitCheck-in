@@ -134,7 +134,8 @@ private fun App() {
                         onRemoveHabit = { habitViewModel.removeHabit(habitPage.habitId) },
                         onIntentPromptTapped = { habitViewModel.onIntentPromptTapped(habitPage.habitId) },
                         onIntentChanged = { text -> habitViewModel.onIntentChanged(habitPage.habitId, text) },
-                        onCollapseIntentInput = { habitViewModel.collapseIntentInput(habitPage.habitId) }
+                        onCollapseIntentInput = { habitViewModel.collapseIntentInput(habitPage.habitId) },
+                        onSubmitIntent = { habitViewModel.onSubmitIntent(habitPage.habitId) }
                     )
                 }
             }
