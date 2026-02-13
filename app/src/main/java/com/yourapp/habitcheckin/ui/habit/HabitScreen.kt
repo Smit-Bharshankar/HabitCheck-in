@@ -1,9 +1,11 @@
 package com.yourapp.habitcheckin.ui.habit
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -13,6 +15,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,12 +53,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -67,13 +75,13 @@ private val HeaderCardColor = Color(0xFF1D2A40)
 private val HeaderLabelColor = Color(0xFFC6DBFF)
 private val HeaderDateColor = Color(0xFF9FBFF6)
 private val HabitCardBaseColor = Color(0xFF141A2A)
-private val HabitCardGradientStart = Color(0xFF1E4461)
-private val HabitCardGradientMid = Color(0xFF3F3C7A)
-private val HabitCardGradientEnd = Color(0xFF1F6A63)
+private val HabitCardGradientStart = Color(0xFF1D537E)
+private val HabitCardGradientMid = Color(0xFF44408D)
+private val HabitCardGradientEnd = Color(0xFF1D7A72)
 private val HabitTitleColor = Color(0xFFE8EEFF)
-private val CompletedPillColor = Color(0xFF3C8E73)
+private val CompletedPillColor = Color(0xFF3AB28C)
 private val PendingPillColor = Color(0xFF5F6578)
-private val CheckInButtonColor = Color(0xFF5875E8)
+private val CheckInButtonColor = Color(0xFF5875E7)
 private val CheckInButtonPressedColor = Color(0xFF4965D1)
 private val DisabledButtonColor = Color(0xFF2A335E)
 private val DisabledButtonTextColor = Color(0xFF9EA7D8)
@@ -84,6 +92,9 @@ private val DestructiveColor = Color(0xFFFF5252)
 private val MenuContainerColor = Color(0xFF1E2128)
 private val MenuBorderColor = Color(0xFF414756)
 private val MenuDividerColor = Color(0xFF353A45)
+private const val HabitNameMaxLength = 60
+private const val maxChar = 60
+
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -93,16 +104,22 @@ fun HabitScreen(
     todayLabel: String,
     isCompletedToday: Boolean,
     weekProgress: List<DayProgress>,
+    intentDraft: String,
+    isIntentInputExpanded: Boolean,
     onCheckIn: () -> Unit,
     onEditName: (String) -> Unit,
     onUndoToday: () -> Unit,
-    onRemoveHabit: () -> Unit
+    onRemoveHabit: () -> Unit,
+    onIntentPromptTapped: () -> Unit,
+    onIntentChanged: (String) -> Unit,
+    onCollapseIntentInput: () -> Unit
 ) {
     val isCompleted = isCompletedToday
     val statusText = if (isCompleted) "You showed up." else "Ready when you are."
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var editName by remember(habitName) { mutableStateOf(habitName) }
+    var isIntentFieldFocused by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -124,6 +141,7 @@ fun HabitScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(ScreenBackgroundTop, ScreenBackgroundMid, ScreenBackgroundBottom)
@@ -131,7 +149,9 @@ fun HabitScreen(
             )
             .padding(20.dp)
     ) {
-        Column {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -286,7 +306,7 @@ fun HabitScreen(
                 ) {
                     Button(
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onCheckIn()
                         },
                         enabled = !isCompleted,
@@ -344,6 +364,106 @@ fun HabitScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(22.dp))
+
+            TextButton(
+                onClick = {
+                    if (isIntentInputExpanded) {
+                        onCollapseIntentInput()
+                        isIntentFieldFocused = false
+                    } else {
+                        onIntentPromptTapped()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 8.dp,
+                    vertical = 10.dp
+                )
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Why are you showing up today?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = HeaderDateColor
+                    )
+                    Icon(
+                        imageVector = if (!isIntentInputExpanded) Icons.Filled.ArrowDropDown else Icons.Filled.ArrowDropUp,
+                        contentDescription = null,
+                        tint = HeaderDateColor
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isIntentInputExpanded,
+                enter = fadeIn(animationSpec = tween(140)) + expandVertically(animationSpec = tween(140)),
+                exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(animationSpec = tween(120))
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = intentDraft,
+                        onValueChange = {
+                            if (it.length <= maxChar) onIntentChanged(it)
+                        },
+                        minLines = 2,
+                        maxLines = 4,
+                        singleLine = false,
+                        shape = RoundedCornerShape(12.dp),
+                        placeholder = { Text("(Optional) Share what brought you here today.") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(104.dp)
+                            .onFocusChanged { isIntentFieldFocused = it.isFocused },
+                        supportingText = {
+                            if (isIntentFieldFocused) {
+                                Text(
+                                    text = "${intentDraft.length} / $maxChar",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.End,
+                                )
+                            }
+                        }
+                    )
+
+                    AnimatedVisibility(
+                        visible = isIntentFieldFocused,
+                        enter = fadeIn(animationSpec = tween(100)),
+                        exit = fadeOut(animationSpec = tween(100))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    onCollapseIntentInput()
+                                    isIntentFieldFocused = false
+                                }
+                            ) {
+                                Text("Cancel")
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            TextButton(
+                                onClick = {
+                                    onCollapseIntentInput()
+                                    isIntentFieldFocused = false
+                                }
+                            ) {
+                                Text("Submit")
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
         }
     }
@@ -355,7 +475,7 @@ fun HabitScreen(
             text = {
                 OutlinedTextField(
                     value = editName,
-                    onValueChange = { editName = it },
+                    onValueChange = { editName = it.take(HabitNameMaxLength) },
                     label = { Text("Habit name") },
                     singleLine = true
                 )

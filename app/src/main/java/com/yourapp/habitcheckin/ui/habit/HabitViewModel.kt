@@ -2,6 +2,7 @@ package com.yourapp.habitcheckin.ui.habit
 
 import android.app.Application
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -13,6 +14,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+private const val HabitNameMaxLength = 60
+
 data class DayProgress(
     val date: LocalDate,
     val isCompleted: Boolean
@@ -22,12 +25,16 @@ data class HabitPageState(
     val habitId: Int,
     val habitName: String,
     val isCompletedToday: Boolean,
-    val weekProgress: List<DayProgress>
+    val weekProgress: List<DayProgress>,
+    val intentDraft: String,
+    val isIntentInputExpanded: Boolean
 )
 
 class HabitViewModel(application: Application) : AndroidViewModel(application) {
     private val habitDao = HabitDatabase.getInstance(application).habitDao()
     private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
+    private val intentDrafts = mutableStateMapOf<Int, String>()
+    private val expandedIntentInputs = mutableStateMapOf<Int, Boolean>()
 
     var habitPages by mutableStateOf<List<HabitPageState>>(emptyList())
         private set
@@ -47,18 +54,50 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
     fun onCheckIn(habitId: Int) {
         viewModelScope.launch {
             if (habitDao.hasLogForDate(habitId, today.toString())) return@launch
-            habitDao.insertHabitLog(
+            val intentToSave = intentDrafts[habitId]
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+
+            val rowId = habitDao.insertHabitLog(
                 HabitLogEntity(
                     habitId = habitId,
-                    date = today.toString()
+                    date = today.toString(),
+                    intent = intentToSave
                 )
             )
-            refreshHabitPages()
+            if (rowId != -1L) {
+                intentDrafts[habitId] = ""
+                expandedIntentInputs[habitId] = false
+                refreshHabitPages()
+            }
         }
     }
 
+    fun onIntentPromptTapped(habitId: Int) {
+        expandedIntentInputs[habitId] = true
+        refreshHabitPagesFromMemory()
+    }
+
+    fun onIntentChanged(habitId: Int, value: String) {
+        intentDrafts[habitId] = value.take(120)
+        refreshHabitPagesFromMemory()
+    }
+
+    fun collapseIntentInput(habitId: Int) {
+        expandedIntentInputs[habitId] = false
+        refreshHabitPagesFromMemory()
+    }
+
+    fun onHabitPageVisible(habitId: Int) {
+        val keys = expandedIntentInputs.keys.toList()
+        keys.forEach { id ->
+            if (id != habitId) expandedIntentInputs[id] = false
+        }
+        refreshHabitPagesFromMemory()
+    }
+
     fun addHabit(name: String) {
-        val trimmedName = name.trim()
+        val trimmedName = name.trim().take(HabitNameMaxLength)
         if (trimmedName.isEmpty()) return
 
         viewModelScope.launch {
@@ -76,7 +115,7 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun editHabitName(habitId: Int, name: String) {
-        val trimmedName = name.trim()
+        val trimmedName = name.trim().take(HabitNameMaxLength)
         if (trimmedName.isEmpty()) return
 
         viewModelScope.launch {
@@ -101,12 +140,27 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun refreshHabitPages() {
         val habits = habitDao.getAllHabits()
+        val validIds = habits.map { it.id }.toSet()
+        intentDrafts.keys.toList().forEach { if (!validIds.contains(it)) intentDrafts.remove(it) }
+        expandedIntentInputs.keys.toList().forEach { if (!validIds.contains(it)) expandedIntentInputs.remove(it) }
+
         habitPages = habits.map { habit ->
             HabitPageState(
                 habitId = habit.id,
                 habitName = habit.name,
                 isCompletedToday = habitDao.hasLogForDate(habit.id, today.toString()),
-                weekProgress = loadWeekProgress(habit.id)
+                weekProgress = loadWeekProgress(habit.id),
+                intentDraft = intentDrafts[habit.id].orEmpty(),
+                isIntentInputExpanded = expandedIntentInputs[habit.id] == true
+            )
+        }
+    }
+
+    private fun refreshHabitPagesFromMemory() {
+        habitPages = habitPages.map { page ->
+            page.copy(
+                intentDraft = intentDrafts[page.habitId].orEmpty(),
+                isIntentInputExpanded = expandedIntentInputs[page.habitId] == true
             )
         }
     }

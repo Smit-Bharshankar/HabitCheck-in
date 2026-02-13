@@ -41,6 +41,8 @@ import com.yourapp.habitcheckin.ui.habit.HabitViewModel
 import com.yourapp.habitcheckin.ui.theme.HabitCheckinTheme
 import kotlin.math.absoluteValue
 
+private const val HabitNameMaxLength = 60
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +65,11 @@ private fun App() {
     LaunchedEffect(habitPages.size) {
         if (habitPages.isNotEmpty() && pagerState.currentPage > habitPages.lastIndex) {
             pagerState.scrollToPage(habitPages.lastIndex)
+        }
+    }
+    LaunchedEffect(pagerState.currentPage, habitPages.size) {
+        if (habitPages.isNotEmpty() && pagerState.currentPage <= habitPages.lastIndex) {
+            habitViewModel.onHabitPageVisible(habitPages[pagerState.currentPage].habitId)
         }
     }
 
@@ -119,10 +126,15 @@ private fun App() {
                         todayLabel = habitViewModel.todayLabel,
                         isCompletedToday = habitPage.isCompletedToday,
                         weekProgress = habitPage.weekProgress,
+                        intentDraft = habitPage.intentDraft,
+                        isIntentInputExpanded = habitPage.isIntentInputExpanded,
                         onCheckIn = { habitViewModel.onCheckIn(habitPage.habitId) },
                         onEditName = { name -> habitViewModel.editHabitName(habitPage.habitId, name) },
                         onUndoToday = { habitViewModel.undoToday(habitPage.habitId) },
-                        onRemoveHabit = { habitViewModel.removeHabit(habitPage.habitId) }
+                        onRemoveHabit = { habitViewModel.removeHabit(habitPage.habitId) },
+                        onIntentPromptTapped = { habitViewModel.onIntentPromptTapped(habitPage.habitId) },
+                        onIntentChanged = { text -> habitViewModel.onIntentChanged(habitPage.habitId, text) },
+                        onCollapseIntentInput = { habitViewModel.collapseIntentInput(habitPage.habitId) }
                     )
                 }
             }
@@ -189,7 +201,7 @@ private fun AddHabitDialog(
             Column {
                 OutlinedTextField(
                     value = habitName,
-                    onValueChange = { habitName = it },
+                    onValueChange = { habitName = it.take(HabitNameMaxLength) },
                     label = { Text("Habit name") },
                     placeholder = { Text("e.g. Read 10 pages") },
                     singleLine = true,

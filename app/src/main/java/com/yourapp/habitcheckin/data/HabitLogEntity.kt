@@ -11,5 +11,6 @@ import androidx.room.PrimaryKey
 data class HabitLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val habitId: Int,
-    val date: String
+    val date: String,
+    val intent: String?
 )
